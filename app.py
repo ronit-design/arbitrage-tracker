@@ -42,9 +42,12 @@ try:
     # --- COLUMN NAME VARIABLES ---
     company_col = df.columns[0]
     current_col = 'Current Discount Value'
-    avg_col = '5 year average'
+    avg_col = '5 year average'  # <--- UPDATED HERE
     stock_price_col = 'Stock Price'
     hold_co_col = 'Holding Company Price'
+    
+    # NOTE: If the SECOND chart throws an error next, check your debugger 
+    # and update this specific line to match your sheet exactly:
     shares_needed_col = 'No of Hold Co share to be bought'
 
     col1, col2, col3 = st.columns(3)
@@ -58,41 +61,4 @@ try:
 
     st.markdown("---")
 
-    col_chart1, col_chart2 = st.columns(2)
-
-    with col_chart1:
-        st.subheader("Current vs 5-Year Avg Discount")
-        
-        # THE FIX: "Melting" the data so the chart never gets confused by lengths
-        melted_df = filtered_df.melt(
-            id_vars=[company_col], 
-            value_vars=[current_col, avg_col], 
-            var_name='Discount Type', 
-            value_name='Discount (%)'
-        )
-        
-        fig1 = px.bar(
-            melted_df, 
-            x=company_col, 
-            y='Discount (%)', 
-            color='Discount Type',
-            barmode='group'
-        )
-        st.plotly_chart(fig1, use_container_width=True)
-
-    with col_chart2:
-        st.subheader("Trade Execution: Shares Needed")
-        fig2 = px.bar(
-            filtered_df, 
-            x=company_col, 
-            y=shares_needed_col, 
-            color=company_col,
-            labels={shares_needed_col: 'Shares to Buy'}
-        )
-        st.plotly_chart(fig2, use_container_width=True)
-
-    st.subheader("Live Execution Matrix")
-    st.dataframe(filtered_df, use_container_width=True)
-
-except KeyError as e:
-    st.error(f"🚨 **Column Name Mismatch!** Python cannot find the column: {e}.")
+    col_chart1, col_chart2 =
