@@ -324,6 +324,30 @@ def get_signal(current, company):
         return "exit"
     return "wait"
 
+def metric_card(label, value, delta=None, value_color=None):
+    """Render a fully styled metric card that ignores Streamlit's theme."""
+    vc = value_color or TEXT_PRI
+    delta_html = ""
+    if delta:
+        delta_html = (
+            f'<div style="font-size:0.72rem;color:{TEXT_MUT};font-weight:500;'
+            f'margin-top:4px;">{delta}</div>'
+        )
+    return f"""
+    <div style="background:{SURFACE};border:1px solid {BORDER};border-radius:8px;
+                padding:20px 24px;box-shadow:0 2px 6px rgba(0,0,0,0.07);">
+        <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;
+                    letter-spacing:0.9px;color:{TEXT_MUT};margin-bottom:8px;">
+            {label}
+        </div>
+        <div style="font-size:1.65rem;font-weight:800;color:{vc};
+                    font-family:'JetBrains Mono',monospace;letter-spacing:-1px;
+                    line-height:1;">
+            {value}
+        </div>
+        {delta_html}
+    </div>"""
+
 def signal_badge(sig, include_icon=True):
     MAP = {
         "strong": ("sig-strong", "STRONG BUY",  "↑↑"),
@@ -696,14 +720,12 @@ else:
     k1, k2, k3, k4, k5, k6 = st.columns(6, gap="small")
     delta_str = f"{delta_avg:+.2f}% vs 5yr avg" if delta_avg is not None else None
 
-    k1.metric("Current Discount",  fmt(c_val),   delta_str,
-              delta_color="off" if delta_avg is None
-                          else ("normal" if c_val >= (a_val or 0) else "inverse"))
-    k2.metric("5yr Average",       fmt(a_val))
-    k3.metric("Median",            fmt(med_val))
-    k4.metric("Mode",              fmt(mode_val))
-    k5.metric("Maximum",           fmt(max_val))
-    k6.metric("Minimum",           fmt(min_val))
+    k1.markdown(metric_card("Current Discount", fmt(c_val), delta_str, color), unsafe_allow_html=True)
+    k2.markdown(metric_card("5yr Average",      fmt(a_val)),  unsafe_allow_html=True)
+    k3.markdown(metric_card("Median",           fmt(med_val)), unsafe_allow_html=True)
+    k4.markdown(metric_card("Mode",             fmt(mode_val)), unsafe_allow_html=True)
+    k5.markdown(metric_card("Maximum",          fmt(max_val), value_color="#DC2626"), unsafe_allow_html=True)
+    k6.markdown(metric_card("Minimum",          fmt(min_val), value_color="#059669"), unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1059,13 +1081,11 @@ else:
                                 unsafe_allow_html=True)
 
                     hs1, hs2, hs3, hs4, hs5 = st.columns(5, gap="small")
-                    hs1.metric("Latest (Historical)", fmt(hist_cur))
-                    hs2.metric("Maximum", fmt(hist_max_val),
-                               hist_max_date.strftime("%d %b %Y"), delta_color="off")
-                    hs3.metric("Minimum", fmt(hist_min_val),
-                               hist_min_date.strftime("%d %b %Y"), delta_color="off")
-                    hs4.metric("Mean",   fmt(hist_mean))
-                    hs5.metric("Median", fmt(hist_med))
+                    hs1.markdown(metric_card("Latest (Historical)", fmt(hist_cur), value_color=color), unsafe_allow_html=True)
+                    hs2.markdown(metric_card("Maximum", fmt(hist_max_val), hist_max_date.strftime("%d %b %Y"), "#DC2626"), unsafe_allow_html=True)
+                    hs3.markdown(metric_card("Minimum", fmt(hist_min_val), hist_min_date.strftime("%d %b %Y"), "#059669"), unsafe_allow_html=True)
+                    hs4.markdown(metric_card("Mean",   fmt(hist_mean)), unsafe_allow_html=True)
+                    hs5.markdown(metric_card("Median", fmt(hist_med)),  unsafe_allow_html=True)
 
             except Exception as e:
                 st.error(f"Could not load historical data — {e}")
