@@ -926,6 +926,11 @@ else:
 
     hist_config = HIST_FILES.get(company)
 
+    # ── DEBUG (remove once working) ───────────────────────────────────────────
+    import glob
+    st.caption(f"🔍 company=`{company}` | cwd=`{APP_DIR}` | xlsx files: `{glob.glob(os.path.join(APP_DIR, '*.xlsx'))}`")
+    # ─────────────────────────────────────────────────────────────────────────
+
     if hist_config:
         hist_path = os.path.join(APP_DIR, hist_config["file"])
         disc_col  = hist_config["col"]
