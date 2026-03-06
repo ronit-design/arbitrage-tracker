@@ -272,8 +272,19 @@ hr {{
 #  HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 def clean_pct(val):
+    """
+    Converts a value to a percentage float.
+    Handles:
+      - Strings like "67%"  → 67.0
+      - Plain numbers like 67 → 67.0
+      - Decimal form like 0.67 → 67.0  (detects if abs(val) < 2)
+    """
     try:
-        return float(str(val).replace('%', '').replace(',', '').strip())
+        v = float(str(val).replace('%', '').replace(',', '').strip())
+        # If value is in decimal form (e.g. 0.67 instead of 67.0), convert to %
+        if abs(v) < 2.0:
+            v = round(v * 100, 4)
+        return v
     except Exception:
         return None
 
