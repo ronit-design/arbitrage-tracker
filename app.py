@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
+import os
+import io
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  CONFIG
@@ -37,6 +39,15 @@ TRIGGERS = {
     "SRF":                    {"entry": 78.0,  "exit": 68.0,  "color": "#D97706"},
     "KSP Pumps":              {"entry": 71.0,  "exit": 61.0,  "color": "#DC2626"},
 }
+
+# Maps company name → (excel filename in repo, discount column index)
+HIST_FILES = {
+    "KSP Pumps":    {"file": "KSB .xlsx",          "col": 13},
+    "Bajaj Finance": {"file": "Bajaj Finserv.xlsx", "col": 12},
+}
+
+# Folder where this script (and the Excel files) live
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  DESIGN SYSTEM
@@ -913,189 +924,153 @@ else:
     st.markdown('<span class="section-label">Historical Discount — Time Series</span>',
                 unsafe_allow_html=True)
 
-    import io
+    hist_config = HIST_FILES.get(company)
 
-    # Per-company session-state key so uploaded file persists across rerenders
-    safe_name = company.replace(' ', '_').replace('/', '_')
-    hist_key  = f"hist_data_{safe_name}"
+    if hist_config:
+        hist_path = os.path.join(APP_DIR, hist_config["file"])
+        disc_col  = hist_config["col"]
 
-    uploaded = st.file_uploader(
-        "Upload historical data (.xlsx)",
-        type=["xlsx"],
-        key=f"upload_{safe_name}",
-        help="Excel file with dates in column A and discount values in column N (stored as decimals, e.g. 0.656 = 65.6%)"
-    )
+        if not os.path.exists(hist_path):
+            st.warning(f"Historical data file not found in repo: `{hist_config['file']}`")
+        else:
+            try:
+                xdf = pd.read_excel(hist_path, header=None)
 
-    if uploaded is not None:
-        st.session_state[hist_key] = uploaded.read()
+                # Dates in column 0, discount in configured column (decimal → %)
+                dates     = pd.to_datetime(xdf.iloc[:, 0],        errors='coerce')
+                discounts = pd.to_numeric( xdf.iloc[:, disc_col], errors='coerce') * 100
 
-    if hist_key in st.session_state and st.session_state[hist_key]:
-        hist_bytes = st.session_state[hist_key]
-
-        try:
-            xdf = pd.read_excel(io.BytesIO(hist_bytes), header=None)
-
-            # Dates in column 0, discount in column 13 (decimal → %)
-            dates     = pd.to_datetime(xdf.iloc[:, 0],  errors='coerce')
-            discounts = pd.to_numeric( xdf.iloc[:, 13], errors='coerce') * 100
-
-            hist_df = (
-                pd.DataFrame({"date": dates, "discount": discounts})
-                .dropna()
-                .sort_values("date")
-                .reset_index(drop=True)
-            )
-
-            if not hist_df.empty:
-
-                # Pre-compute fill colour from the company accent hex
-                r_ = int(color[1:3], 16)
-                g_ = int(color[3:5], 16)
-                b_ = int(color[5:7], 16)
-                fill_rgba = f"rgba({r_},{g_},{b_},0.10)"
-
-                hist_mean     = hist_df["discount"].mean()
-                hist_max_val  = hist_df["discount"].max()
-                hist_min_val  = hist_df["discount"].min()
-                hist_max_date = hist_df.loc[hist_df["discount"].idxmax(), "date"]
-                hist_min_date = hist_df.loc[hist_df["discount"].idxmin(), "date"]
-                hist_med      = hist_df["discount"].median()
-                hist_cur      = hist_df["discount"].iloc[-1]
-
-                # ── Build figure ─────────────────────────────────────────────
-                fig_ts = go.Figure()
-
-                # Buy zone shading (entry trigger and above)
-                if entry_v is not None:
-                    y_top = max(hist_max_val * 1.05, entry_v + 5)
-                    fig_ts.add_hrect(
-                        y0=entry_v, y1=y_top,
-                        fillcolor="rgba(37,99,235,0.05)",
-                        line_width=0,
-                    )
-
-                # Entry trigger line
-                if entry_v is not None:
-                    fig_ts.add_hline(
-                        y=entry_v,
-                        line=dict(color="#059669", width=1.5, dash="dash"),
-                        annotation_text=f"Entry  {fmt(entry_v)}",
-                        annotation_position="top right",
-                        annotation_font=dict(
-                            size=10, color="#059669",
-                            family="JetBrains Mono, monospace"
-                        ),
-                    )
-
-                # Exit trigger line
-                if exit_v is not None:
-                    fig_ts.add_hline(
-                        y=exit_v,
-                        line=dict(color="#D97706", width=1.5, dash="dash"),
-                        annotation_text=f"Exit  {fmt(exit_v)}",
-                        annotation_position="bottom right",
-                        annotation_font=dict(
-                            size=10, color="#D97706",
-                            family="JetBrains Mono, monospace"
-                        ),
-                    )
-
-                # Mean line
-                fig_ts.add_hline(
-                    y=hist_mean,
-                    line=dict(color=TEXT_MUT, width=1, dash="dot"),
-                    annotation_text=f"Mean  {fmt(hist_mean)}",
-                    annotation_position="top left",
-                    annotation_font=dict(
-                        size=10, color=TEXT_MUT,
-                        family="JetBrains Mono, monospace"
-                    ),
+                hist_df = (
+                    pd.DataFrame({"date": dates, "discount": discounts})
+                    .dropna()
+                    .sort_values("date")
+                    .reset_index(drop=True)
                 )
 
-                # Main discount line with area fill
-                fig_ts.add_trace(go.Scatter(
-                    x=hist_df["date"],
-                    y=hist_df["discount"],
-                    mode="lines",
-                    name="Discount",
-                    line=dict(color=color, width=2),
-                    fill="tozeroy",
-                    fillcolor=fill_rgba,
-                    hovertemplate=(
-                        "<b>%{x|%d %b %Y}</b><br>"
-                        "Discount: <b>%{y:.2f}%</b>"
-                        "<extra></extra>"
-                    ),
-                    showlegend=False,
-                ))
+                if hist_df.empty:
+                    st.warning("No valid date/discount data found in the file.")
+                else:
+                    # Pre-compute stats
+                    r_ = int(color[1:3], 16)
+                    g_ = int(color[3:5], 16)
+                    b_ = int(color[5:7], 16)
+                    fill_rgba     = f"rgba({r_},{g_},{b_},0.10)"
+                    hist_mean     = hist_df["discount"].mean()
+                    hist_max_val  = hist_df["discount"].max()
+                    hist_min_val  = hist_df["discount"].min()
+                    hist_max_date = hist_df.loc[hist_df["discount"].idxmax(), "date"]
+                    hist_min_date = hist_df.loc[hist_df["discount"].idxmin(), "date"]
+                    hist_med      = hist_df["discount"].median()
+                    hist_cur      = hist_df["discount"].iloc[-1]
 
-                fig_ts.update_layout(**{
-                    **CHART_LAYOUT,
-                    "height": 380,
-                    "margin": dict(l=16, r=90, t=32, b=16),
-                    "hovermode": "x unified",
-                    "hoverlabel": dict(
-                        bgcolor=SURFACE,
-                        bordercolor=BORDER,
-                        font=dict(
-                            family="Inter, sans-serif",
-                            size=12, color=TEXT_PRI
+                    # ── Build figure ──────────────────────────────────────────
+                    fig_ts = go.Figure()
+
+                    # Buy zone shading
+                    if entry_v is not None:
+                        y_top = max(hist_max_val * 1.05, entry_v + 5)
+                        fig_ts.add_hrect(
+                            y0=entry_v, y1=y_top,
+                            fillcolor="rgba(37,99,235,0.05)",
+                            line_width=0,
+                        )
+
+                    # Entry trigger line
+                    if entry_v is not None:
+                        fig_ts.add_hline(
+                            y=entry_v,
+                            line=dict(color="#059669", width=1.5, dash="dash"),
+                            annotation_text=f"Entry  {fmt(entry_v)}",
+                            annotation_position="top right",
+                            annotation_font=dict(size=10, color="#059669",
+                                                 family="JetBrains Mono, monospace"),
+                        )
+
+                    # Exit trigger line
+                    if exit_v is not None:
+                        fig_ts.add_hline(
+                            y=exit_v,
+                            line=dict(color="#D97706", width=1.5, dash="dash"),
+                            annotation_text=f"Exit  {fmt(exit_v)}",
+                            annotation_position="bottom right",
+                            annotation_font=dict(size=10, color="#D97706",
+                                                 family="JetBrains Mono, monospace"),
+                        )
+
+                    # Mean line
+                    fig_ts.add_hline(
+                        y=hist_mean,
+                        line=dict(color=TEXT_MUT, width=1, dash="dot"),
+                        annotation_text=f"Mean  {fmt(hist_mean)}",
+                        annotation_position="top left",
+                        annotation_font=dict(size=10, color=TEXT_MUT,
+                                             family="JetBrains Mono, monospace"),
+                    )
+
+                    # Main discount line
+                    fig_ts.add_trace(go.Scatter(
+                        x=hist_df["date"],
+                        y=hist_df["discount"],
+                        mode="lines",
+                        name="Discount",
+                        line=dict(color=color, width=2),
+                        fill="tozeroy",
+                        fillcolor=fill_rgba,
+                        hovertemplate=(
+                            "<b>%{x|%d %b %Y}</b><br>"
+                            "Discount: <b>%{y:.2f}%</b><extra></extra>"
                         ),
-                    ),
-                    "yaxis": {
-                        **CHART_LAYOUT["yaxis"],
-                        "ticksuffix": "%",
-                        "title": dict(
-                            text="Discount (%)",
-                            font=dict(
-                                size=11, color=TEXT_MUT,
-                                family="Inter, sans-serif"
+                        showlegend=False,
+                    ))
+
+                    fig_ts.update_layout(**{
+                        **CHART_LAYOUT,
+                        "height": 380,
+                        "margin": dict(l=16, r=90, t=32, b=16),
+                        "hovermode": "x unified",
+                        "hoverlabel": dict(
+                            bgcolor=SURFACE, bordercolor=BORDER,
+                            font=dict(family="Inter, sans-serif",
+                                      size=12, color=TEXT_PRI),
+                        ),
+                        "yaxis": {
+                            **CHART_LAYOUT["yaxis"],
+                            "ticksuffix": "%",
+                            "title": dict(
+                                text="Discount (%)",
+                                font=dict(size=11, color=TEXT_MUT,
+                                          family="Inter, sans-serif"),
                             ),
-                        ),
-                    },
-                    "xaxis": {
-                        **CHART_LAYOUT["xaxis"],
-                        "tickformat": "%b '%y",
-                        "nticks": 14,
-                    },
-                })
+                        },
+                        "xaxis": {
+                            **CHART_LAYOUT["xaxis"],
+                            "tickformat": "%b '%y",
+                            "nticks": 14,
+                        },
+                    })
 
-                st.plotly_chart(
-                    fig_ts,
-                    use_container_width=True,
-                    config={"displayModeBar": False}
-                )
+                    st.plotly_chart(fig_ts, use_container_width=True,
+                                    config={"displayModeBar": False})
 
-                # ── Historical stats row ──────────────────────────────────────
-                st.markdown("<br>", unsafe_allow_html=True)
-                st.markdown(
-                    '<span class="section-label">Historical Statistics</span>',
-                    unsafe_allow_html=True
-                )
+                    # ── Historical stats row ──────────────────────────────────
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown('<span class="section-label">Historical Statistics</span>',
+                                unsafe_allow_html=True)
 
-                hs1, hs2, hs3, hs4, hs5 = st.columns(5, gap="small")
-                hs1.metric(
-                    "Latest (Historical)",
-                    fmt(hist_cur),
-                )
-                hs2.metric(
-                    "Maximum",
-                    fmt(hist_max_val),
-                    hist_max_date.strftime("%d %b %Y"),
-                    delta_color="off",
-                )
-                hs3.metric(
-                    "Minimum",
-                    fmt(hist_min_val),
-                    hist_min_date.strftime("%d %b %Y"),
-                    delta_color="off",
-                )
-                hs4.metric("Mean",   fmt(hist_mean))
-                hs5.metric("Median", fmt(hist_med))
+                    hs1, hs2, hs3, hs4, hs5 = st.columns(5, gap="small")
+                    hs1.metric("Latest (Historical)", fmt(hist_cur))
+                    hs2.metric("Maximum", fmt(hist_max_val),
+                               hist_max_date.strftime("%d %b %Y"), delta_color="off")
+                    hs3.metric("Minimum", fmt(hist_min_val),
+                               hist_min_date.strftime("%d %b %Y"), delta_color="off")
+                    hs4.metric("Mean",   fmt(hist_mean))
+                    hs5.metric("Median", fmt(hist_med))
 
-            else:
-                st.warning("No valid date/discount data found in the uploaded file. "
-                           "Check that dates are in column A and discounts in column N.")
-
-        except Exception as e:
-            st.error(f"Could not parse Excel file — {e}")
+            except Exception as e:
+                st.error(f"Could not load historical data — {e}")
+    else:
+        st.markdown(
+            f'<div style="color:{TEXT_MUT};font-size:0.82rem;font-weight:500;'
+            f'padding:12px 0;">No historical data file configured for this company yet.</div>',
+            unsafe_allow_html=True
+        )
