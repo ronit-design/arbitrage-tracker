@@ -556,21 +556,21 @@ if selected == "Overview":
         ),
     ))
 
-    fig_bar.update_layout(
+    fig_bar.update_layout(**{
         **CHART_LAYOUT,
-        height=400,
-        bargap=0.5,
-        yaxis={
+        "height": 400,
+        "bargap": 0.5,
+        "yaxis": {
             **CHART_LAYOUT["yaxis"],
             "ticksuffix": "%",
             "title": dict(text="Discount (%)", font=dict(size=11, color=TEXT_MUT)),
         },
-        xaxis={
+        "xaxis": {
             **CHART_LAYOUT["xaxis"],
             "tickfont": dict(size=11, color=TEXT_PRI),
         },
-        margin=dict(l=16, r=16, t=48, b=16),
-    )
+        "margin": dict(l=16, r=16, t=48, b=16),
+    })
 
     st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
 
