@@ -46,8 +46,8 @@ HIST_FILES = {
     "Bajaj Finance": {"file": "Bajaj Finserv.xlsx", "col": 12},
 }
 
-# Folder where this script (and the Excel files) live
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
+# Working directory on Streamlit Cloud is the repo root
+APP_DIR = os.getcwd()
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  DESIGN SYSTEM
@@ -931,7 +931,7 @@ else:
         disc_col  = hist_config["col"]
 
         if not os.path.exists(hist_path):
-            st.warning(f"Historical data file not found in repo: `{hist_config['file']}`")
+            st.warning(f"File not found at: `{hist_path}` — make sure `{hist_config['file']}` is in the root of your GitHub repo.")
         else:
             try:
                 xdf = pd.read_excel(hist_path, header=None)
