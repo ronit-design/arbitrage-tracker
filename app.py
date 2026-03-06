@@ -42,8 +42,11 @@ TRIGGERS = {
 
 # Maps company name → (excel filename in repo, discount column index)
 HIST_FILES = {
-    "KSB Pumps":     {"file": "KSB .xlsx",          "col": 13},
-    "Bajaj Finance": {"file": "Bajaj Finserv.xlsx",  "col": 12},
+    "KSB Pumps":            {"file": "KSB .xlsx",             "col": 13},
+    "Bajaj Finance":        {"file": "Bajaj Finserv.xlsx",     "col": 12},
+    "TVS Motors":           {"file": "TVS Holding.xlsx",       "col": 12},
+    "Cholamandalam Finance":{"file": "Chola Comparison.xlsx",  "col": 12},
+    "SRF":                  {"file": "Kama Holdings.xlsx",     "col": 12},
 }
 
 # Working directory on Streamlit Cloud is the repo root
