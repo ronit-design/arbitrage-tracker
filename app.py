@@ -560,15 +560,15 @@ if selected == "Overview":
         **CHART_LAYOUT,
         height=400,
         bargap=0.5,
-        yaxis=dict(
+        yaxis={
             **CHART_LAYOUT["yaxis"],
-            ticksuffix="%",
-            title=dict(text="Discount (%)", font=dict(size=11, color=TEXT_MUT)),
-        ),
-        xaxis=dict(
+            "ticksuffix": "%",
+            "title": dict(text="Discount (%)", font=dict(size=11, color=TEXT_MUT)),
+        },
+        xaxis={
             **CHART_LAYOUT["xaxis"],
-            tickfont=dict(size=11, color=TEXT_PRI),
-        ),
+            "tickfont": dict(size=11, color=TEXT_PRI),
+        },
         margin=dict(l=16, r=16, t=48, b=16),
     )
 
