@@ -474,102 +474,107 @@ if selected == "Overview":
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ── Comparison chart ─────────────────────────────────────────────────────
-    st.markdown('<span class="section-label">Current Discount vs Benchmarks</span>',
+    st.markdown('<span class="section-label">Discount Statistics by Company</span>',
                 unsafe_allow_html=True)
 
-    names, currents, avgs, entries, exits, bar_colors = [], [], [], [], [], []
+    # Collect data per company
+    ch_names, ch_current, ch_avg, ch_min, ch_max = [], [], [], [], []
     for company in companies:
         row = df[df[COL_COMPANY] == company]
-        if row.empty: continue
-        c = clean_pct(row[COL_CURRENT].iloc[0])
-        a = clean_pct(row[COL_AVG].iloc[0])
-        t = TRIGGERS.get(company, {})
-        if c is not None and a is not None:
-            names.append(company)
-            currents.append(round(c, 2))
-            avgs.append(round(a, 2))
-            entries.append(t.get("entry"))
-            exits.append(t.get("exit"))
-            bar_colors.append(t.get("color", "#2563EB"))
+        if row.empty:
+            continue
+        c  = clean_pct(row[COL_CURRENT].iloc[0])
+        a  = clean_pct(row[COL_AVG].iloc[0])
+        mn = clean_pct(row[COL_MIN].iloc[0])
+        mx = clean_pct(row[COL_MAX].iloc[0])
+        if c is None or a is None:
+            continue
+        ch_names.append(company)
+        ch_current.append(round(c,  2))
+        ch_avg.append(round(a,  2))
+        ch_min.append(round(mn, 2) if mn is not None else None)
+        ch_max.append(round(mx, 2) if mx is not None else None)
+
+    # Metric definitions: label, values, color, hover template
+    METRICS = [
+        ("Current Discount", ch_current, "#2563EB"),
+        ("5yr Average",      ch_avg,     "#64748B"),
+        ("Minimum Discount", ch_min,     "#10B981"),
+        ("Maximum Discount", ch_max,     "#EF4444"),
+    ]
 
     fig_bar = go.Figure()
 
-    # Current discount bars
-    fig_bar.add_trace(go.Bar(
-        name="Current Discount",
-        x=names,
-        y=currents,
-        marker=dict(
-            color=bar_colors,
-            line=dict(width=0),
-            opacity=0.9,
-        ),
-        text=[f"{v:.2f}%" for v in currents],
-        textposition="outside",
-        textfont=dict(size=12, color=TEXT_PRI, family="JetBrains Mono"),
-        cliponaxis=False,
-        width=0.4,
-    ))
+    for metric_name, values, bar_color in METRICS:
+        # Build per-bar hover text with bold company name
+        hover_texts = []
+        for i, v in enumerate(values):
+            company_label = ch_names[i] if i < len(ch_names) else ""
+            val_str = f"{v:.2f}%" if v is not None else "—"
+            hover_texts.append(
+                f"<b style='font-family:Inter,sans-serif;font-size:13px;"
+                f"color:#0D1117'>{company_label}</b><br>"
+                f"<span style='font-family:Inter,sans-serif;color:#5A6478;"
+                f"font-size:11px'>{metric_name}</span><br>"
+                f"<span style='font-family:JetBrains Mono,monospace;"
+                f"font-size:14px;font-weight:700;color:{bar_color}'>{val_str}</span>"
+            )
 
-    # 5yr average markers
-    fig_bar.add_trace(go.Scatter(
-        name="5yr Average",
-        x=names,
-        y=avgs,
-        mode="markers+text",
-        marker=dict(
-            symbol="line-ew",
-            size=28,
-            color=TEXT_SEC,
-            line=dict(width=3, color=TEXT_SEC),
-        ),
-        text=[f"{v:.1f}%" for v in avgs],
-        textposition="top center",
-        textfont=dict(size=10, color=TEXT_SEC, family="JetBrains Mono"),
-    ))
+        safe_values = [v if v is not None else 0 for v in values]
 
-    # Entry trigger markers
-    fig_bar.add_trace(go.Scatter(
-        name="Entry Trigger",
-        x=names,
-        y=entries,
-        mode="markers",
-        marker=dict(
-            symbol="diamond",
-            size=10,
-            color="#10B981",
-            line=dict(width=2, color="#059669"),
-        ),
-    ))
-
-    # Exit trigger markers
-    fig_bar.add_trace(go.Scatter(
-        name="Exit Trigger",
-        x=names,
-        y=exits,
-        mode="markers",
-        marker=dict(
-            symbol="diamond",
-            size=10,
-            color="#F59E0B",
-            line=dict(width=2, color="#D97706"),
-        ),
-    ))
+        fig_bar.add_trace(go.Bar(
+            name=metric_name,
+            x=ch_names,
+            y=safe_values,
+            marker=dict(
+                color=bar_color,
+                line=dict(width=0),
+                opacity=0.88,
+            ),
+            hovertemplate="%{customdata}<extra></extra>",
+            customdata=hover_texts,
+            cliponaxis=False,
+        ))
 
     fig_bar.update_layout(**{
         **CHART_LAYOUT,
-        "height": 400,
-        "bargap": 0.5,
+        "height": 440,
+        "barmode": "group",
+        "bargap": 0.22,
+        "bargroupgap": 0.06,
+        "hoverlabel": dict(
+            bgcolor=SURFACE,
+            bordercolor=BORDER,
+            font=dict(family="Inter, sans-serif", size=12, color=TEXT_PRI),
+        ),
+        "legend": dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=12, color=TEXT_SEC, family="Inter, sans-serif"),
+            bgcolor="rgba(0,0,0,0)",
+            borderwidth=0,
+        ),
         "yaxis": {
             **CHART_LAYOUT["yaxis"],
             "ticksuffix": "%",
-            "title": dict(text="Discount (%)", font=dict(size=11, color=TEXT_MUT)),
+            "gridcolor": "#EAECF0",
+            "title": dict(
+                text="Discount (%)",
+                font=dict(size=11, color=TEXT_MUT, family="Inter, sans-serif"),
+            ),
         },
         "xaxis": {
             **CHART_LAYOUT["xaxis"],
-            "tickfont": dict(size=11, color=TEXT_PRI),
+            "tickfont": dict(
+                size=12,
+                color=TEXT_PRI,
+                family="Inter, sans-serif",
+            ),
         },
-        "margin": dict(l=16, r=16, t=48, b=16),
+        "margin": dict(l=16, r=16, t=52, b=16),
     })
 
     st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
