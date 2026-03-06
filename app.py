@@ -31,11 +31,11 @@ COL_MEDIAN  = "Median"
 COL_MODE    = "Mode"
 
 TRIGGERS = {
-    "TVS Holdings":          {"entry": 61.0,  "exit": 46.0,  "color": "#2563EB"},
-    "Bajaj Finserv":         {"entry": 1.3,   "exit": -20.0, "color": "#7C3AED"},
-    "Chola Holdings":        {"entry": 47.0,  "exit": 22.0,  "color": "#059669"},
-    "Kama Holdings":         {"entry": 78.0,  "exit": 68.0,  "color": "#D97706"},
-    "Industrial Prudential": {"entry": 71.0,  "exit": 61.0,  "color": "#DC2626"},
+    "TVS Motors":             {"entry": 61.0,  "exit": 46.0,  "color": "#2563EB"},
+    "Bajaj Finance":          {"entry": 1.3,   "exit": -20.0, "color": "#7C3AED"},
+    "Cholamandalam Finance":  {"entry": 47.0,  "exit": 22.0,  "color": "#059669"},
+    "SRF":                    {"entry": 78.0,  "exit": 68.0,  "color": "#D97706"},
+    "KSP Pumps":              {"entry": 71.0,  "exit": 61.0,  "color": "#DC2626"},
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -274,17 +274,11 @@ hr {{
 def clean_pct(val):
     """
     Converts a value to a percentage float.
-    Handles:
-      - Strings like "67%"  → 67.0
-      - Plain numbers like 67 → 67.0
-      - Decimal form like 0.67 → 67.0  (detects if abs(val) < 2)
+    Handles strings like "67%", "1.4%", "-34%", or plain numbers.
+    Values are assumed to already be in percentage form (e.g. 67, not 0.67).
     """
     try:
-        v = float(str(val).replace('%', '').replace(',', '').strip())
-        # If value is in decimal form (e.g. 0.67 instead of 67.0), convert to %
-        if abs(v) < 2.0:
-            v = round(v * 100, 4)
-        return v
+        return float(str(val).replace('%', '').replace(',', '').strip())
     except Exception:
         return None
 
@@ -299,8 +293,16 @@ def fmt_price(val):
     except Exception:
         return str(val)
 
+def get_trigger(company):
+    """Case-insensitive, whitespace-tolerant lookup into TRIGGERS."""
+    key = company.strip().lower()
+    for k, v in TRIGGERS.items():
+        if k.strip().lower() == key:
+            return v
+    return None
+
 def get_signal(current, company):
-    t = TRIGGERS.get(company)
+    t = get_trigger(company)
     if not t or current is None:
         return "wait"
     if current >= t["entry"] + 6:
@@ -464,7 +466,7 @@ if selected == "Overview":
         if row.empty:
             continue
         c_val  = clean_pct(row[COL_CURRENT].iloc[0])
-        t      = TRIGGERS.get(company, {})
+        t      = get_trigger(company) or {}
         color  = t.get("color", "#2563EB")
         sig    = get_signal(c_val, company)
         badge  = signal_badge(sig)
@@ -604,7 +606,7 @@ if selected == "Overview":
         mx  = clean_pct(row[COL_MAX].iloc[0])
         mn  = clean_pct(row[COL_MIN].iloc[0])
         med = clean_pct(row[COL_MEDIAN].iloc[0]) if COL_MEDIAN in df.columns else None
-        t   = TRIGGERS.get(company, {})
+        t   = get_trigger(company) or {}
         sig = get_signal(c, company)
         gap_to_entry = round(c - t.get("entry", 0), 2) if c else None
         matrix_rows.append({
@@ -641,7 +643,7 @@ if selected == "Overview":
 else:
     company = selected
     row     = df[df[COL_COMPANY] == company]
-    t       = TRIGGERS.get(company, {})
+    t       = get_trigger(company) or {}
     color   = t.get("color", "#2563EB")
 
     if row.empty:
@@ -870,3 +872,197 @@ else:
             f'<div class="card"><table class="kv-table">{stat_html}</table></div>',
             unsafe_allow_html=True
         )
+
+    # ══════════════════════════════════════════════════════════════════════════
+    #  HISTORICAL TIME SERIES
+    # ══════════════════════════════════════════════════════════════════════════
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<span class="section-label">Historical Discount — Time Series</span>',
+                unsafe_allow_html=True)
+
+    import io
+
+    # Per-company session-state key so uploaded file persists across rerenders
+    safe_name = company.replace(' ', '_').replace('/', '_')
+    hist_key  = f"hist_data_{safe_name}"
+
+    uploaded = st.file_uploader(
+        "Upload historical data (.xlsx)",
+        type=["xlsx"],
+        key=f"upload_{safe_name}",
+        help="Excel file with dates in column A and discount values in column N (stored as decimals, e.g. 0.656 = 65.6%)"
+    )
+
+    if uploaded is not None:
+        st.session_state[hist_key] = uploaded.read()
+
+    if hist_key in st.session_state and st.session_state[hist_key]:
+        hist_bytes = st.session_state[hist_key]
+
+        try:
+            xdf = pd.read_excel(io.BytesIO(hist_bytes), header=None)
+
+            # Dates in column 0, discount in column 13 (decimal → %)
+            dates     = pd.to_datetime(xdf.iloc[:, 0],  errors='coerce')
+            discounts = pd.to_numeric( xdf.iloc[:, 13], errors='coerce') * 100
+
+            hist_df = (
+                pd.DataFrame({"date": dates, "discount": discounts})
+                .dropna()
+                .sort_values("date")
+                .reset_index(drop=True)
+            )
+
+            if not hist_df.empty:
+
+                # Pre-compute fill colour from the company accent hex
+                r_ = int(color[1:3], 16)
+                g_ = int(color[3:5], 16)
+                b_ = int(color[5:7], 16)
+                fill_rgba = f"rgba({r_},{g_},{b_},0.10)"
+
+                hist_mean     = hist_df["discount"].mean()
+                hist_max_val  = hist_df["discount"].max()
+                hist_min_val  = hist_df["discount"].min()
+                hist_max_date = hist_df.loc[hist_df["discount"].idxmax(), "date"]
+                hist_min_date = hist_df.loc[hist_df["discount"].idxmin(), "date"]
+                hist_med      = hist_df["discount"].median()
+                hist_cur      = hist_df["discount"].iloc[-1]
+
+                # ── Build figure ─────────────────────────────────────────────
+                fig_ts = go.Figure()
+
+                # Buy zone shading (entry trigger and above)
+                if entry_v is not None:
+                    y_top = max(hist_max_val * 1.05, entry_v + 5)
+                    fig_ts.add_hrect(
+                        y0=entry_v, y1=y_top,
+                        fillcolor="rgba(37,99,235,0.05)",
+                        line_width=0,
+                    )
+
+                # Entry trigger line
+                if entry_v is not None:
+                    fig_ts.add_hline(
+                        y=entry_v,
+                        line=dict(color="#059669", width=1.5, dash="dash"),
+                        annotation_text=f"Entry  {fmt(entry_v)}",
+                        annotation_position="top right",
+                        annotation_font=dict(
+                            size=10, color="#059669",
+                            family="JetBrains Mono, monospace"
+                        ),
+                    )
+
+                # Exit trigger line
+                if exit_v is not None:
+                    fig_ts.add_hline(
+                        y=exit_v,
+                        line=dict(color="#D97706", width=1.5, dash="dash"),
+                        annotation_text=f"Exit  {fmt(exit_v)}",
+                        annotation_position="bottom right",
+                        annotation_font=dict(
+                            size=10, color="#D97706",
+                            family="JetBrains Mono, monospace"
+                        ),
+                    )
+
+                # Mean line
+                fig_ts.add_hline(
+                    y=hist_mean,
+                    line=dict(color=TEXT_MUT, width=1, dash="dot"),
+                    annotation_text=f"Mean  {fmt(hist_mean)}",
+                    annotation_position="top left",
+                    annotation_font=dict(
+                        size=10, color=TEXT_MUT,
+                        family="JetBrains Mono, monospace"
+                    ),
+                )
+
+                # Main discount line with area fill
+                fig_ts.add_trace(go.Scatter(
+                    x=hist_df["date"],
+                    y=hist_df["discount"],
+                    mode="lines",
+                    name="Discount",
+                    line=dict(color=color, width=2),
+                    fill="tozeroy",
+                    fillcolor=fill_rgba,
+                    hovertemplate=(
+                        "<b>%{x|%d %b %Y}</b><br>"
+                        "Discount: <b>%{y:.2f}%</b>"
+                        "<extra></extra>"
+                    ),
+                    showlegend=False,
+                ))
+
+                fig_ts.update_layout(**{
+                    **CHART_LAYOUT,
+                    "height": 380,
+                    "margin": dict(l=16, r=90, t=32, b=16),
+                    "hovermode": "x unified",
+                    "hoverlabel": dict(
+                        bgcolor=SURFACE,
+                        bordercolor=BORDER,
+                        font=dict(
+                            family="Inter, sans-serif",
+                            size=12, color=TEXT_PRI
+                        ),
+                    ),
+                    "yaxis": {
+                        **CHART_LAYOUT["yaxis"],
+                        "ticksuffix": "%",
+                        "title": dict(
+                            text="Discount (%)",
+                            font=dict(
+                                size=11, color=TEXT_MUT,
+                                family="Inter, sans-serif"
+                            ),
+                        ),
+                    },
+                    "xaxis": {
+                        **CHART_LAYOUT["xaxis"],
+                        "tickformat": "%b '%y",
+                        "nticks": 14,
+                    },
+                })
+
+                st.plotly_chart(
+                    fig_ts,
+                    use_container_width=True,
+                    config={"displayModeBar": False}
+                )
+
+                # ── Historical stats row ──────────────────────────────────────
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown(
+                    '<span class="section-label">Historical Statistics</span>',
+                    unsafe_allow_html=True
+                )
+
+                hs1, hs2, hs3, hs4, hs5 = st.columns(5, gap="small")
+                hs1.metric(
+                    "Latest (Historical)",
+                    fmt(hist_cur),
+                )
+                hs2.metric(
+                    "Maximum",
+                    fmt(hist_max_val),
+                    hist_max_date.strftime("%d %b %Y"),
+                    delta_color="off",
+                )
+                hs3.metric(
+                    "Minimum",
+                    fmt(hist_min_val),
+                    hist_min_date.strftime("%d %b %Y"),
+                    delta_color="off",
+                )
+                hs4.metric("Mean",   fmt(hist_mean))
+                hs5.metric("Median", fmt(hist_med))
+
+            else:
+                st.warning("No valid date/discount data found in the uploaded file. "
+                           "Check that dates are in column A and discounts in column N.")
+
+        except Exception as e:
+            st.error(f"Could not parse Excel file — {e}")
