@@ -21,10 +21,9 @@ st.markdown("""
         border-left: 4px solid #0f172a;
     }
     
-    /* Hide Streamlit UI elements for a standalone app feel */
+/* Hide Streamlit UI elements for a standalone app feel */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     
     /* Custom Headers */
     h1, h2, h3 { color: #0f172a; font-weight: 700 !important; }
