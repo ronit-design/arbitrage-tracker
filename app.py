@@ -69,9 +69,10 @@ html, body, [class*="css"] {{
 
 /* ─ Hide Streamlit chrome ─ */
 #MainMenu, footer {{ display: none; }}
-header {{ visibility: hidden; }}
-[data-testid="collapsedControl"] {{ visibility: visible !important; display: flex !important; }}
 .stDeployButton {{ display: none; }}
+[data-testid="stToolbar"] {{ display: none; }}
+[data-testid="stDecoration"] {{ display: none; }}
+[data-testid="stStatusWidget"] {{ display: none; }}
 
 /* ─ Sidebar ─ */
 section[data-testid="stSidebar"] {{
