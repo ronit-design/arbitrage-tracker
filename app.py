@@ -427,8 +427,8 @@ with st.sidebar:
         )
 
     st.markdown(f"""
-    <div style="position:absolute;bottom:24px;left:0;right:0;padding:0 16px">
-        <div style="height:1px;background:#1E2433;margin-bottom:16px"></div>
+    <div style="margin-top:32px;padding:0 4px">
+        <div style="height:1px;background:#1E2433;margin-bottom:12px"></div>
         <div style="font-size:0.68rem;color:#4B5563;font-weight:500">
             Auto-refresh · 60s
         </div>
