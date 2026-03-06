@@ -42,7 +42,7 @@ try:
     # --- COLUMN NAME VARIABLES ---
     company_col = df.columns[0]
     current_col = 'Current Discount Value'
-    avg_col = '5-year average discount'
+    avg_col = '5 year average'
     stock_price_col = 'Stock Price'
     hold_co_col = 'Holding Company Price'
     shares_needed_col = 'No of Hold Co share to be bought'
