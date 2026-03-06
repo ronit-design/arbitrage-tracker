@@ -37,13 +37,13 @@ TRIGGERS = {
     "Bajaj Finance":          {"entry": 1.3,   "exit": -20.0, "color": "#7C3AED"},
     "Cholamandalam Finance":  {"entry": 47.0,  "exit": 22.0,  "color": "#059669"},
     "SRF":                    {"entry": 78.0,  "exit": 68.0,  "color": "#D97706"},
-    "KSP Pumps":              {"entry": 71.0,  "exit": 61.0,  "color": "#DC2626"},
+    "KSB Pumps":              {"entry": 71.0,  "exit": 61.0,  "color": "#DC2626"},
 }
 
 # Maps company name → (excel filename in repo, discount column index)
 HIST_FILES = {
-    "KSP Pumps":    {"file": "KSB .xlsx",          "col": 13},
-    "Bajaj Finance": {"file": "Bajaj Finserv.xlsx", "col": 12},
+    "KSB Pumps":     {"file": "KSB .xlsx",          "col": 13},
+    "Bajaj Finance": {"file": "Bajaj Finserv.xlsx",  "col": 12},
 }
 
 # Working directory on Streamlit Cloud is the repo root
@@ -926,10 +926,6 @@ else:
 
     hist_config = HIST_FILES.get(company)
 
-    # ── DEBUG (remove once working) ───────────────────────────────────────────
-    import glob
-    st.caption(f"🔍 company=`{company}` | cwd=`{APP_DIR}` | xlsx files: `{glob.glob(os.path.join(APP_DIR, '*.xlsx'))}`")
-    # ─────────────────────────────────────────────────────────────────────────
 
     if hist_config:
         hist_path = os.path.join(APP_DIR, hist_config["file"])
