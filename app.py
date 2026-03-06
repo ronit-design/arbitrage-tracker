@@ -198,7 +198,7 @@ hr {{
     border: 1px solid {BORDER};
     border-radius: 8px;
     padding: 20px 22px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
 }}
 
 .signal-pill {{
@@ -705,7 +705,7 @@ else:
         st.markdown('<span class="section-label">Discount Range Position</span>',
                     unsafe_allow_html=True)
 
-        if all(v is not None for v in [c_val, min_val, max_val, a_val, entry_v, exit_v]):
+        if all(v is not None for v in [c_val, min_val, max_val, a_val, entry_v, exit_v]) and max_val > min_val:
             pad   = (max_val - min_val) * 0.08
             x_min = min_val - pad
             x_max = max_val + pad
@@ -791,30 +791,63 @@ else:
             st.plotly_chart(fig_range, use_container_width=True,
                             config={"displayModeBar": False})
 
+        else:
+            st.markdown(f"""
+            <div class="card" style="text-align:center;padding:32px;color:{TEXT_MUT};
+                         font-size:0.82rem;font-weight:500;">
+                Range chart unavailable — min/max/average data not yet in sheet
+            </div>""", unsafe_allow_html=True)
+
         # ── Entry / Exit trigger boxes ────────────────────────────────────────
+        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
         tc1, tc2 = st.columns(2, gap="medium")
-        needs = round(entry_v - c_val, 2) if c_val and entry_v else None
-        above = round(c_val - exit_v, 2)  if c_val and exit_v  else None
+        needs = round(entry_v - c_val, 2) if c_val is not None and entry_v is not None else None
+        above = round(c_val - exit_v,  2) if c_val is not None and exit_v  is not None else None
+
+        needs_text = (
+            "Already at entry — buy signal active" if needs is not None and needs <= 0
+            else f"{needs:+.2f}% to reach entry" if needs is not None
+            else "—"
+        )
+        above_text = (
+            f"{above:.2f}% above exit level" if above is not None and above > 0
+            else "Below exit — consider exiting" if above is not None
+            else "—"
+        )
 
         with tc1:
             st.markdown(f"""
-            <div class="trigger-box" style="
-                --bg-color:#F0FDF4; --b-color:#A7F3D0; --text-color:#065F46;">
-                <div class="tb-label">Entry Trigger</div>
-                <div class="tb-value">{fmt(entry_v)}</div>
-                <div class="tb-sub">
-                    {f'{needs:+.2f}% needed to trigger' if needs else '—'}
+            <div style="background:#FFFFFF; border:1.5px solid #6EE7B7;
+                        border-left:4px solid #059669; border-radius:8px;
+                        padding:16px 18px; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
+                            letter-spacing:1px;color:#059669;margin-bottom:8px;">
+                    Entry Trigger
+                </div>
+                <div style="font-size:1.4rem;font-weight:800;color:#065F46;
+                            font-family:'JetBrains Mono',monospace;margin-bottom:4px;">
+                    {fmt(entry_v)}
+                </div>
+                <div style="font-size:0.72rem;color:#6B7280;font-weight:500;">
+                    {needs_text}
                 </div>
             </div>""", unsafe_allow_html=True)
 
         with tc2:
             st.markdown(f"""
-            <div class="trigger-box" style="
-                --bg-color:#FFFBEB; --b-color:#FDE68A; --text-color:#92400E;">
-                <div class="tb-label">Exit Trigger</div>
-                <div class="tb-value">{fmt(exit_v)}</div>
-                <div class="tb-sub">
-                    {f'{above:.2f}% above exit level' if above else '—'}
+            <div style="background:#FFFFFF; border:1.5px solid #FCD34D;
+                        border-left:4px solid #D97706; border-radius:8px;
+                        padding:16px 18px; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
+                            letter-spacing:1px;color:#D97706;margin-bottom:8px;">
+                    Exit Trigger
+                </div>
+                <div style="font-size:1.4rem;font-weight:800;color:#92400E;
+                            font-family:'JetBrains Mono',monospace;margin-bottom:4px;">
+                    {fmt(exit_v)}
+                </div>
+                <div style="font-size:0.72rem;color:#6B7280;font-weight:500;">
+                    {above_text}
                 </div>
             </div>""", unsafe_allow_html=True)
 
