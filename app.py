@@ -70,9 +70,30 @@ html, body, [class*="css"] {{
 /* ─ Hide Streamlit chrome ─ */
 #MainMenu, footer {{ display: none; }}
 .stDeployButton {{ display: none; }}
-[data-testid="stToolbar"] {{ display: none; }}
-[data-testid="stDecoration"] {{ display: none; }}
-[data-testid="stStatusWidget"] {{ display: none; }}
+header {{
+    visibility: hidden;
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}}
+/* Keep sidebar toggle visible even when header is hidden */
+[data-testid="stSidebarCollapsedControl"] {{
+    visibility: visible !important;
+    display: flex !important;
+    position: fixed !important;
+    top: 0.5rem !important;
+    left: 0.5rem !important;
+    z-index: 99999 !important;
+}}
+[data-testid="collapsedControl"] {{
+    visibility: visible !important;
+    display: flex !important;
+    position: fixed !important;
+    top: 0.5rem !important;
+    left: 0.5rem !important;
+    z-index: 99999 !important;
+}}
 
 /* ─ Sidebar ─ */
 section[data-testid="stSidebar"] {{
