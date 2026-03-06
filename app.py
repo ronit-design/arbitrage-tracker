@@ -68,7 +68,9 @@ html, body, [class*="css"] {{
 }}
 
 /* ─ Hide Streamlit chrome ─ */
-#MainMenu, footer, header {{ visibility: hidden; }}
+#MainMenu, footer {{ display: none; }}
+header {{ visibility: hidden; }}
+[data-testid="collapsedControl"] {{ visibility: visible !important; display: flex !important; }}
 .stDeployButton {{ display: none; }}
 
 /* ─ Sidebar ─ */
