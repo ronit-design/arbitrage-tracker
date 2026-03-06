@@ -39,16 +39,13 @@ else:
 st.markdown("### Quick Metrics")
 
 try:
-    # --- COLUMN NAME VARIABLES ---
-    company_col = df.columns[0]
+    # --- EXACT COLUMN NAME VARIABLES MATCHED TO YOUR SHEET ---
+    company_col = 'Stock'
     current_col = 'Current Discount Value'
-    avg_col = '5 year average'  # <--- UPDATED HERE
-    stock_price_col = 'Stock Price'
+    avg_col = '5 year average'  
+    stock_price_col = 'Price'
     hold_co_col = 'Holding Company Price'
-    
-    # NOTE: If the SECOND chart throws an error next, check your debugger 
-    # and update this specific line to match your sheet exactly:
-    shares_needed_col = 'No of Hold Co share to be bought'
+    shares_needed_col = 'Shares of Holding Company to be Bought per Lot'
 
     col1, col2, col3 = st.columns(3)
 
