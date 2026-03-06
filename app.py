@@ -11,7 +11,6 @@ st.title("📈 Live Arbitrage Opportunity Dashboard")
 def load_data():
     sheet_url = "https://docs.google.com/spreadsheets/d/1I48HWtmhga7AAJbFDIhjblHDzNGHZ5ASJtGtVZMTioE/export?format=csv&gid=0"
     df = pd.read_csv(sheet_url)
-    # Clean up any accidental spaces at the beginning or end of column names
     df.columns = df.columns.str.strip() 
     return df
 
@@ -28,7 +27,6 @@ selected_company = st.sidebar.selectbox("Filter by Company:", ["All Companies"] 
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🛠️ Debugging: Actual Column Names")
-st.sidebar.write("If the dashboard crashes, make sure the names below exactly match the variables in the code:")
 st.sidebar.write(df.columns.tolist())
 
 # 4. Filter Logic
@@ -64,12 +62,21 @@ try:
 
     with col_chart1:
         st.subheader("Current vs 5-Year Avg Discount")
+        
+        # THE FIX: "Melting" the data so the chart never gets confused by lengths
+        melted_df = filtered_df.melt(
+            id_vars=[company_col], 
+            value_vars=[current_col, avg_col], 
+            var_name='Discount Type', 
+            value_name='Discount (%)'
+        )
+        
         fig1 = px.bar(
-            filtered_df, 
+            melted_df, 
             x=company_col, 
-            y=[current_col, avg_col], 
-            barmode='group',
-            labels={'value': 'Discount (%)', 'variable': 'Discount Type'}
+            y='Discount (%)', 
+            color='Discount Type',
+            barmode='group'
         )
         st.plotly_chart(fig1, use_container_width=True)
 
@@ -89,6 +96,3 @@ try:
 
 except KeyError as e:
     st.error(f"🚨 **Column Name Mismatch!** Python cannot find the column: {e}.")
-    st.warning("Look at the sidebar on the left to see your exact column names. Then, update the variables around line 47 in your `app.py` file on GitHub to match them perfectly.")
-except Exception as e:
-    st.error(f"An unexpected error occurred: {e}")
